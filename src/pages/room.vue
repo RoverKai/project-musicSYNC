@@ -1,6 +1,14 @@
 <script setup>
 import RoomHeader from '../components/RoomHeader/RoomHeader.vue';
 import RoomFooter from '../components/RoomFooter/RoomFooter.vue';
+import { useWebRTCStore } from '../store/webRTC';
+
+// 初始化RTC
+const webRTCStore = useWebRTCStore()
+webRTCStore.initIfNull()
+const webRTC = webRTCStore.webRTC
+console.log(webRTC.value)
+
 
 </script>
 
@@ -8,9 +16,9 @@ import RoomFooter from '../components/RoomFooter/RoomFooter.vue';
   <div class="container">
     <RoomHeader />
     <div id="body">
-      <div>
-        <input type="file" id="fileInput" />
-        <button id="sendFileButton">Send File</button>
+      <div class="fileTranslator">
+        <input type="file" id="fileInput" multiple />
+        <button id="sendFileButton" >发送文件</button>
       </div>
     </div>
     <RoomFooter />
@@ -28,5 +36,13 @@ import RoomFooter from '../components/RoomFooter/RoomFooter.vue';
 #body {
   flex-grow: 1;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.fileTranslator {
+  margin-top: 10%;
+  display: flex;
+  flex-direction: column;
 }
 </style>
