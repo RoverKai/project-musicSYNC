@@ -1,165 +1,99 @@
-<script setup>
-import { ref, onMounted, computed, reactive } from 'vue';
-import { useWebSocketStore } from '../store/webSocket';
-
-const inviteBtnContent = ref('');
-
-const copyLink = async () => {
-  try {
-    await navigator.clipboard.writeText(roomStatusStore.roomId)
-    inviteBtnContent.value = 'copied!';
-  } catch {
-    alert('复制失败，请检查权限或浏览器兼容性')
-  }
-  setTimeout(() => {
-    inviteBtnContent.value = '邀请好朋友一起听歌吧';
-  }, 3000);
-};
-
-const resourceText = ref('这里输入好朋友的链接|')
-const visitLinkPlaceholder = ref('')
-
-// dynamic placeholder
-onMounted(() => {
-  const index = ref(0)
-  const lastIndex = ref(0)
-  const isPositive = computed(() => index.value - lastIndex.value > 0);
-
-  const isEdgeOfRange = index => {
-    return index == resourceText.value.length || index == 0
-  }
-
-  setInterval(() => {
-    if (isEdgeOfRange(index.value) && isPositive.value) {
-      index.value--
-    } else if (isEdgeOfRange(index.value) && !isPositive.value) {
-      index.value++
-    } else if (isPositive.value) {
-      index.value++
-    } else {
-      index.value--
-    }
-    visitLinkPlaceholder.value = resourceText.value.slice(0, index.value)
-    lastIndex.value = index.value - 1
-  }, 500)
-})
-
-// get | init websocket
-const wsStore = useWebSocketStore()
-if ( !wsStore.websocket || wsStore.websocket.readyState !== WebSocket.OPEN ) {
-  wsStore.createWebSocket('ws://192.168.1.192:8080/ws')
-}
-const ws = wsStore.websocket
-
-// 连接成功时
-ws.onopen = () => {
-  console.log("Connected to WebSocket server.");
-  createRoom()
-};
-
-// 收到消息时
-import { useRoomStatusStore } from '../store/roomStatus';
-import { useRouter } from 'vue-router';
-
-const roomStatusStore = useRoomStatusStore()
-const router = useRouter()
-
-ws.onmessage = (event) => {
-  console.log(event.data)
-  if (event.data.toString().substring(0, 7) == 'roomId:') {
-    roomStatusStore.setRoomId(event.data.toString().substring(7))
-    inviteBtnContent.value = '邀请好朋友一起听歌！'
-  }
-  if (event.data.toString().substring(0, 19) == 'already join room: ') {
-    roomStatusStore.setRoomId(event.data.toString().substring(19))
-    router.push('/room')
-  }
-  if (event.data.toString().indexOf('new Roommate joined') !== -1) {
-    router.push('/room')
-  }
-};
-
-// 创建房间
-function createRoom() {
-  ws.send(`create:${Math.random().toString().substring(15) + Date.now().toString(36)}`);
-}
-
-// setInterval(() => {
-//   console.log(roomStatusStore.roomId)
-//   if (!roomStatusStore.roomId && ws.readyState === WebSocket.OPEN) {
-//     createRoom()
-//   }
-// }, 3000)
-
-const targetRoomId = ref('')
-// 加入房间
-function joinRoom() {
-  if (targetRoomId.value == roomStatusStore.roomId) {
-    alert('我在哪儿☝️🤓')
-    return
-  }
-  ws.send(`join:${targetRoomId.value}`)
-}
-
-
-
-</script>
-
 <template>
-  <div id="container">
-    <!-- <button @click="sendMessage">发起请求</button> -->
-    <div>
-      <input type="text" :placeholder="visitLinkPlaceholder" class="visitLink" v-model="targetRoomId">
-      <button id="visitBtn" @click="joinRoom">加入</button>
+  <div class="home-container">
+    <div class="content">
+      <h1 class="title">MusicSync</h1>
+      <p class="subtitle">Share and listen t<span class="loading-o">o</span> music together</p>
+      <!-- roomId -->
+      <div class="id-form">
+        <input type="text" v-model="userInfo.roomId" placeholder="Enter Room ID" />
+        <input type="text" v-model="userInfo.name" placeholder="Enter Your Nickname" />
+        <button class="create-room-btn" @click="createRoom">
+          Create Room
+        </button>
+      </div>
     </div>
-    <p class="logo vue">project musicSYNC</p>
-    <!-- <audio controls>
-      <source
-        src="C:\Users\hahalolo\Downloads\obj_wo3DlMOGwrbDjj7DisKw_4313853605_eef3_4447_83bc_bfdfa6c61ef5ae46b7d6d6fd7ba3f0ff.mp3"
-        type="audio/mpeg">
-      您的浏览器不支持 audio 标签。
-    </audio> -->
-    <button id="inviteBtn" @click="copyLink">{{ inviteBtnContent }}</button>
   </div>
 </template>
 
+<script setup>
+import { reactive, watch } from 'vue';
+import { useRouter } from 'vue-router'
+
+const userInfo = reactive({
+  roomId: '',
+  name: ''
+})
+
+import { useUserStore } from '../store/User';
+const userStore = useUserStore()
+watch(userInfo, ({roomId, name}) => {
+  userStore.setUserInfo(roomId, name)
+},{
+  deep: true
+})
+
+const router = useRouter()
+
+const createRoom = () => {
+  router.push('/room')
+}
+</script>
 
 <style scoped>
-#visitBtn {
-  border-radius: 0px 8px 8px 0px;
+.home-container {
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
 }
 
-.visitLink {
-  background-color: #e3e3e3d4;
-  border-radius: 8px 0px 0px 8px;
+.content {
+  text-align: center;
+  padding: 2rem;
 }
 
-#inviteBtn {
-  width: 13rem;
+.title {
+  font-size: 4rem;
+  color: #fff;
+  margin-bottom: 1rem;
+  font-weight: bold;
+  background: linear-gradient(45deg, #646cff, #42b883);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
-.logo {
-  font-size: 64px;
-  height: 3em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
+.subtitle {
+  font-size: 1.5rem;
+  color: #888;
+  margin-bottom: 2rem;
 }
 
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+.create-room-btn {
+  padding: 1rem 2rem;
+  font-size: 1.2rem;
+  background: #646cff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
-.logo.vue:hover {
-  filter: drop-shadow(0 0 2em #42b883aa);
+.create-room-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(100, 108, 255, 0.4);
+  background: #7c82ff;
 }
 
-#container {
-  box-sizing: border-box;
-  height: 100%;
+.id-form {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+}
+
+.id-form > * {
+  margin-top: 2rem;
 }
 </style>
